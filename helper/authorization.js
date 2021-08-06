@@ -14,7 +14,7 @@ exports.checkToken = (req, res, next) =>{
     if (!headers.authorization) {
         response.status = false;
         response.msg = "Header is required";
-        return res.status(403).send(response);
+        return res.status(401).send(response);
     } 
 
     const token = headers.authorization.split(' ')[1];
@@ -28,11 +28,11 @@ exports.checkToken = (req, res, next) =>{
             if (err) {
                 response.status = false;
                 response.msg = "Invalid token"
-                return res.status(403).send(response);
+                return res.status(401).send(response);
             }
 
             if (result.length > 0) {
-                console.log("Token is valid")
+                //console.log("Token is valid")
                 next()
             } else{
                 response.status = false;
@@ -44,7 +44,7 @@ exports.checkToken = (req, res, next) =>{
     } catch(error){
         response.status = false;
         response.msg = "Invalid token"
-        return res.status(403).send(response);
+        return res.status(401).send(response);
     }
     
 }

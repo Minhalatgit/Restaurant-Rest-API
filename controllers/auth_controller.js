@@ -82,11 +82,6 @@ exports.register = async (req, res) =>{
                             msg: err,
                         })  
 
-                        return res.json({
-                            status: true,
-                            msg: "User registered successfully, check your email",
-                        })
-
                         //send verification code to email of user
                         sendEmail(body.email,verificationCode).then(()=>{
                             console.log('Email sent')
