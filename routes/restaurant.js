@@ -8,9 +8,9 @@ var router = function(){
     //Admin
     Router.get('/getadminrestaurants', restaurantController.getAdminRestaurants);
     Router.get('/getadminrestaurant', restaurantController.getAdminRestaurant);
-    Router.post('/createadminrestaurant', upload.upload.single('restaurant_image'), restaurantController.createAdminRestaurant);
-    Router.post('/updateadminrestaurant', upload.upload.single('restaurant_image'), restaurantController.updateAdminRestaurant);
-    Router.delete('/deleteadminrestaurant', restaurantController.deleteAdminRestaurant);
+    Router.post('/createrestaurant', upload.upload.single('restaurant_image'), restaurantController.createRestaurant);
+    Router.post('/updaterestaurant', upload.upload.single('restaurant_image'), restaurantController.updateRestaurant);
+    Router.delete('/deleterestaurant', restaurantController.deleteRestaurant);
 
     //Client
     Router.get('/getuserrestaurants', restaurantController.getUserRestaurants);

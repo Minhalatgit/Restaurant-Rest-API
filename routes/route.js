@@ -3,10 +3,12 @@ const app =  express();
 
 var userRoute = require('./user');
 var restaurantRoute = require('./restaurant');
-var scheduleRoute = require('./schedule');
+var itemRoute = require('./item');
+var categoryRoute = require('./category');
 
 app.use('/user', userRoute);
 app.use('/restaurant', restaurantRoute);
-app.use('/schedule', scheduleRoute);
+app.use('/item', itemRoute);
+app.use('/category', categoryRoute);
 
 module.exports = app;
