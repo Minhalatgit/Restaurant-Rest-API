@@ -30,7 +30,7 @@ function checkValidRestaurant(restaurant) {
 exports.createRestaurant = async (req, res) =>{
 
     try {
-        const {restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email} = req.body;
+        const {restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email} = req.body;
         const file = req.file;
 
         const validRestaurant = checkValidRestaurant(req.body);
@@ -42,15 +42,17 @@ exports.createRestaurant = async (req, res) =>{
             })
         }
 
-        let query = `INSERT INTO restaurant(restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time,
-             restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status ) VALUES(?,?,?,?,?,?,?,?)`
-        let queryValues = [restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, 1] 
+        let query = `INSERT INTO restaurant(restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time,
+             restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status ) VALUES(?,?,?,?,?,?,?,?,?,?)`
+        let queryValues = [restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, 1] 
 
         if(file){
-            query = `INSERT INTO restaurant (restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, 
-                restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_image ) VALUES(?,?,?,?,?,?,?)`
-            queryValues = [restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, 1, file.path] 
+            query = `INSERT INTO restaurant(restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, 
+                    restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_image ) VALUES(?,?,?,?,?,?,?,?,?,?,?)`
+            queryValues = [restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, 1, file.path] 
         }
+
+        console.log(query);
 
         sql.query(query, queryValues, (err, result) =>{
             if (err) return res.send(err);
@@ -74,7 +76,7 @@ exports.createRestaurant = async (req, res) =>{
 exports.updateRestaurant = async (req, res) =>{
 
     try {
-        const {restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id, schedule_id} = req.body;
+        const {restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id, schedule_id} = req.body;
         const file = req.file;
 
         console.log(restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id)
@@ -88,15 +90,17 @@ exports.updateRestaurant = async (req, res) =>{
             })
         }
 
-        let query = `UPDATE restaurant SET restaurant_name = ?, restaurant_longitude = ?, restaurant_latitude = ?, restaurant_open_time = ?,
+        let query = `UPDATE restaurant SET restaurant_name = ?, restaurant_subtitle = ?, restaurant_address = ?, restaurant_longitude = ?, restaurant_latitude = ?, restaurant_open_time = ?,
             restaurant_close_time = ?, restaurant_phone = ?, restaurant_email = ?, restaurant_status = ? WHERE restaurant_id = ?`
-        let queryValues = [restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id] 
+        let queryValues = [restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id] 
 
         if(file){
-            query = `UPDATE restaurant SET restaurant_name = ?, restaurant_longitude = ?, restaurant_latitude = ?, restaurant_open_time = ?, restaurant_close_time = ?,
+            query = `UPDATE restaurant SET restaurant_name = ?, restaurant_subtitle = ?, restaurant_address = ?, restaurant_longitude = ?, restaurant_latitude = ?, restaurant_open_time = ?, restaurant_close_time = ?,
                     restaurant_phone = ?, restaurant_email = ?, restaurant_status = ?, restaurant_image = ? WHERE restaurant_id = ?`
-            queryValues = [restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, file.path, restaurant_id] 
+            queryValues = [restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, file.path, restaurant_id] 
         }
+
+        console.log(query)
 
         sql.query(query, queryValues, (err, result) =>{
             if (!err) {
@@ -174,13 +178,18 @@ exports.getAdminRestaurant = async (req, res) =>{
 exports.getAdminRestaurants = async (req, res) =>{
 
     try {
-        sql.query('SELECT * FROM restaurant', (err, result) =>{
+        sql.query(`SELECT res.*, count(rev.review_id) as totat_reviews, rating FROM restaurant as res 
+                   LEFT JOIN review as rev 
+                   ON rev.restaurant_id = res.restaurant_id 
+                   GROUP BY res.restaurant_id`,
+                    (err, result) =>{
             if (!err) {
                 return res.json({
                     status: true,
                     msg: 'Restaurants fetched successfully',
                     data: result
                 })
+                
             } else{
                 return res.send(err);
             }
@@ -200,13 +209,13 @@ exports.getUserRestaurants = async (req, res) =>{
 
     try {
         const { restaurant_latitude, restaurant_longitude, kilometers } = req.query;
-        let query = `SELECT * FROM 
-                    (SELECT *,(((acos(sin(( ${restaurant_latitude} * pi() / 180)) *
-                    sin(( restaurant_latitude * pi() / 180)) + cos(( ${restaurant_latitude} * pi() /180 ))*
-                    cos(( restaurant_latitude * pi() / 180)) * cos((( ${restaurant_longitude} - restaurant_longitude) 
-                    * pi()/180)))) * 180/pi() ) * 60 * 1.1515 * 1.609344 ) 
-                    as distance FROM restaurant) restaurant 
-                    WHERE distance <= ${kilometers} AND restaurant_status = 1`
+        let query = `SELECT restaurant.*, count(rev.review_id) as totat_reviews, rating 
+                    FROM (SELECT *,(((acos(sin(( ${restaurant_latitude} * pi() / 180))
+                    * sin(( restaurant.restaurant_latitude * pi() / 180)) + cos(( ${restaurant_latitude} * pi() /180 )) 
+                    *cos(( restaurant.restaurant_latitude * pi() / 180)) * cos(((${restaurant_longitude} - restaurant.restaurant_longitude)
+                    * pi()/180)))) * 180/pi() ) * 60 * 1.1515 * 1.609344 )as distance FROM restaurant) restaurant
+                    LEFT JOIN review as rev ON rev.restaurant_id = restaurant.restaurant_id 
+                    WHERE distance <= 10 AND restaurant.restaurant_status = 1 GROUP BY restaurant.restaurant_id LIMIT 10`
         sql.query(query, (err, result)=>{
                 if(!err){
                     console.log(result)
