@@ -13,7 +13,7 @@ exports.checkToken = (req, res, next) =>{
     // when no header is not present in req
     if (!headers.authorization) {
         response.status = false;
-        response.msg = "Header is required";
+        response.msg = "Authorization header is required";
         return res.status(401).send(response);
     } 
 

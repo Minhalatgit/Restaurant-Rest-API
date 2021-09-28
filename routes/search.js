@@ -5,7 +5,9 @@ var searchController = require('../controllers/search_controller');
 var router = function(){
 
     Router.get('/item', searchController.searchItem);
-    Router.get('/restaurant', searchController.searchRestaurant);
+
+    Router.get('/location', searchController.searchRestaurantByLocation);
+    Router.get('/rating', searchController.searchRestaurantByRating);
 
     return Router
 }

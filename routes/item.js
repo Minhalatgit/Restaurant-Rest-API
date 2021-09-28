@@ -14,6 +14,7 @@ var router = function(){
 
     //Client
     Router.get('/getclientitems', itemController.getClientItems);
+    Router.get('/getrestaurantitems', itemController.getRestaurantItems);
 
     return Router
 }

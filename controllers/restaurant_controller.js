@@ -1,5 +1,6 @@
 'user strict';
 const sql = require('../connection');
+var forEachAsync = require('async-foreach').forEach;
 
 function checkValidRestaurant(restaurant) {
     let errorMessage = ""
@@ -30,8 +31,9 @@ function checkValidRestaurant(restaurant) {
 exports.createRestaurant = async (req, res) =>{
 
     try {
-        const {restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email} = req.body;
+        let {restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, categories} = req.body;
         const file = req.file;
+        categories = JSON.parse(categories)
 
         const validRestaurant = checkValidRestaurant(req.body);
 
@@ -52,11 +54,18 @@ exports.createRestaurant = async (req, res) =>{
             queryValues = [restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, 1, file.path] 
         }
 
-        console.log(query);
-
         sql.query(query, queryValues, (err, result) =>{
             if (err) return res.send(err);
             
+            forEachAsync(categories, function(item, index, arr) {
+                sql.query('INSERT INTO restaurant_category(restaurant_id, category_id) VALUES(?,?)', [result.insertId, item], (errCat, resultCat)=>{
+                    if(errCat) return res.send(errCat);
+                    console.log('Insert in loop for category_id:', item);
+                })
+            });
+
+            console.log('Outside loop');
+              
             return res.json({
                 status: true,
                 msg: 'Restaurant created successfully'
@@ -78,6 +87,7 @@ exports.updateRestaurant = async (req, res) =>{
     try {
         const {restaurant_name, restaurant_subtitle, restaurant_address, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id, schedule_id} = req.body;
         const file = req.file;
+        const categories = JSON.parse(req.body.categories);
 
         console.log(restaurant_name, restaurant_longitude, restaurant_latitude, restaurant_open_time, restaurant_close_time, restaurant_phone, restaurant_email, restaurant_status, restaurant_id)
 
@@ -103,14 +113,28 @@ exports.updateRestaurant = async (req, res) =>{
         console.log(query)
 
         sql.query(query, queryValues, (err, result) =>{
-            if (!err) {
-                return res.json({
-                    status: true,
-                    msg: 'Restaurant updated successfully'
+            if (err) return res.send(err);
+            
+            console.log(result);
+
+            sql.query('DELETE FROM restaurant_category WHERE restaurant_id = ?', [restaurant_id], (errDel, resultDel) =>{
+                if(errDel) return res.send(errDel);
+                console.log('Delete restaurant_id:', restaurant_id);
+            })
+
+            forEachAsync(categories, function(item, index, arr) {
+                sql.query('INSERT INTO restaurant_category(restaurant_category_id, restaurant_id, category_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE category_id = ?, restaurant_id = ?', [null, restaurant_id, item, item, restaurant_id], (errCat, resultCat)=>{
+                    if(errCat) return res.send(errCat);
+                    console.log('Insert in loop for category_id:', item);
                 })
-            } else{
-                return res.send(err);
-            }
+            });
+
+            console.log('Outside loop');
+
+            return res.json({
+                status: true,
+                msg: 'Restaurant updated successfully'
+            })
         })
 
     } catch(e) {
@@ -215,8 +239,48 @@ exports.getUserRestaurants = async (req, res) =>{
                     *cos(( restaurant.restaurant_latitude * pi() / 180)) * cos(((${restaurant_longitude} - restaurant.restaurant_longitude)
                     * pi()/180)))) * 180/pi() ) * 60 * 1.1515 * 1.609344 )as distance FROM restaurant) restaurant
                     LEFT JOIN review as rev ON rev.restaurant_id = restaurant.restaurant_id 
-                    WHERE distance <= 10 AND restaurant.restaurant_status = 1 GROUP BY restaurant.restaurant_id LIMIT 10`
+                    WHERE distance <= ${kilometers} AND restaurant.restaurant_status = 1 GROUP BY restaurant.restaurant_id`
         sql.query(query, (err, result)=>{
+                if(err) return res.send(err);  
+
+                let restaurantIds = result.map((restaurant) =>{
+                    return restaurant.restaurant_id
+                })
+                restaurantIds = restaurantIds.toString()
+                console.log('Restaurant ids ', restaurantIds);
+
+                sql.query(`SELECT category.* FROM category 
+                INNER JOIN restaurant_category on restaurant_category.category_id= category.category_id
+                WHERE restaurant_category.restaurant_id in (${restaurantIds})
+                GROUP BY category.category_id `, (errCat, resultCat)=>{
+                    if(errCat) return res.send(errCat);  
+                    
+                    return res.json({
+                        status: true,
+                        msg : "Data fetched successfully",
+                        data: {
+                            restaurants: result,
+                            categories: resultCat
+                        }
+                    });
+                })
+            })
+
+    } catch(e) {
+        console.log('Catch an error: ', e);
+        return res.json({
+            status: false,
+            msg: 'Something went wrong'
+        }) 
+    }
+
+}
+
+exports.getUserRestaurant = async (req, res) =>{
+
+    try {
+        const { restaurant_id } = req.query;
+        sql.query("SELECT * FROM category INNER JOIN restaurant_category on restaurant_category.category_id= category.category_id WHERE restaurant_category.restaurant_id = ?", [restaurant_id] ,(err, result)=>{
                 if(!err){
                     console.log(result)
                     return res.json({
@@ -224,7 +288,37 @@ exports.getUserRestaurants = async (req, res) =>{
                         msg : "Data fetched successfully",
                         data : result
                     });
-                } else{
+                } else {
+                    return res.send(err);  
+                }
+            })
+
+    } catch(e) {
+        console.log('Catch an error: ', e);
+        return res.json({
+            status: false,
+            msg: 'Something went wrong'
+        }) 
+    }
+
+}
+
+exports.getRestaurantCategories = async (req, res) =>{
+
+    try {
+        const { restaurant_id } = req.query;
+        sql.query(`SELECT * FROM category 
+                   INNER JOIN restaurant_category
+                   ON restaurant_category.category_id = category.category_id
+                   WHERE restaurant_category.restaurant_id = ?`, [restaurant_id] ,(err, result)=>{
+                if(!err){
+                    console.log(result)
+                    return res.json({
+                        status: true,
+                        msg : "Data fetched successfully",
+                        data : result
+                    });
+                } else {
                     return res.send(err);  
                 }
             })

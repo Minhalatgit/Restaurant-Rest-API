@@ -5,8 +5,9 @@ exports.createCategory = async (req, res) =>{
 
     try {
         const { category_name, category_description } = req.body;
+        const file = req.file;
 
-        sql.query('INSERT INTO category(category_name, category_description) VALUES(?,?)', [ category_name, category_description ] , (err, result) =>{
+        sql.query('INSERT INTO category(category_name, category_description, category_image) VALUES(?,?,?)', [ category_name, category_description, file.path ] , (err, result) =>{
             if (!err) {
                 return res.json({
                     status: true,
